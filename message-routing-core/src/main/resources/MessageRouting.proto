@@ -1,0 +1,153 @@
+package com.babeeta.butterfly;
+
+// 消息类型
+enum MessageCMD {
+	HEARTBEAT_INIT = 0;
+	HEARTBEAT = 1;
+	HEARTBEAT_RESPONSE = 2;
+	MESSAGE = 129;
+	ACKNOWLEDGEMENT = 130;
+	DEVICE_REGISTER = 131;
+	AUTH = 132;
+	SERVICE_BIND = 133;
+	SERVICE_UNBIND = 134;
+	RESPONSE = 135;
+	CREDENTIAL = 136;
+	SERVICE_BIND_UPDATE = 137;
+}
+
+enum MessageType {
+	BINARY = 0;
+	JSON = 1;
+}
+
+// 【推送消息】。系统中推送业务使用
+// CMD:129
+message Message {
+	// 长度不超过32字节
+	required string uid = 1;
+	// 收件人, 最长256字节。例如:{did*32}.{cid*32}.{aid*32}@x.gateway.dev
+	// 客户端收到的to可能会被简化为{cid*32}.{aid*32}@dev
+	required string to = 2;
+	// 发件人，最长256字节。例如:{aid*32}@app
+	required string from = 3;	
+	// 内容， 最长1024字节
+	required bytes content = 4;
+	// 消息生成的时间和日期， 默认为东八区
+	required int64 date = 5;
+	// 回复标志， 32字节，对应uid
+	optional string reply_for = 6;
+	// 路由记录，没个元素最长256字节。尽量不向客户端发送此属性
+	repeated string via = 7;	
+	// 过期时间,单位：s
+	optional int32 expire = 8;
+	// 消息类型，默认为Push Notification
+	optional MessageType messageType = 9;
+	// 父消息的ID
+	optional string parentId = 10;
+	// 是否为广播消息
+	optional bool broadcast=11;
+}
+
+// 推送消息的确认
+// CMD:130
+message Acknowledgement {
+	// 对应消息的UID， 32位长度
+	required string uid = 1;
+	//是否为应用确认
+	required bool isAppAck = 2;
+	//clientId
+	optional string cid=3;
+}
+
+// 心跳初始化信息
+// CMD:0
+message HeartbeatInit {
+	// 上次长连接断开的原因
+	required HeartbeatException last_exception = 1;
+	// 上次长连接最后一次心跳的间隔（即便不成功也算数)
+	required int32 last_timeout = 2;
+	// 上次断开的具体文本信息
+	optional string cause = 3;
+
+
+	// 长连接上次中断的原因
+	enum HeartbeatException{
+		// 没有错误， 例如以前还没有连接过
+		none = 0;
+		// 电话
+		call = 1;
+		// 客户端主动断开，例如暂停服务
+		pause = 2;
+		// 通过心跳检测到网络僵死了uid
+		choke = 3;
+		// 发生了其他的异常	
+		exception = 4;	
+	}
+}
+
+// 心跳
+// CMD:1
+message Heartbeat {
+	optional int32 last_delay = 1;
+}
+
+// 心跳回复
+// CMD:2
+message HeartbeatResponse {
+	required int32 delay = 1; 
+}
+
+// 设备第一建立Tunnel时向Server申请Device ID
+// CMD:131
+message DeviceRegister {
+    optional string imei = 1;
+    optional string wifi_mac = 2;
+    // 屏幕宽度（像素数）
+    optional int32 screen_width = 3;
+    // 屏幕高度（像素数）
+    optional int32 screen_height = 4;
+    // 屏幕的色深(例如24位色就是：24, 16位色就是16，32位色就是32)
+    optional int32 screen_color_depth = 5;
+    // 手机型号
+    optional string phone_model = 6;
+    // 操作系统名称
+    optional string os_name = 7;
+    // 操作系统版本号
+    optional string os_version = 8;
+    // 客户端版本号
+    optional string client_version = 9;
+    // 客户端默认支持的字符集
+    optional string charset = 10;
+    // 其他的设备相关信息， 随意发挥
+    optional string etc = 11;
+    // 应用名称，例如嵌入式的中间件
+    optional string app = 12;
+
+}
+
+// 设备建立Tunnel时（不是第一次）发送的身份验证信息
+// CMD:132、136
+message Credential {
+	// Application Id（服务器验证） 或 Device ID（客户端验证）
+	required string id = 1;
+	// 对应的secure_key，最长32字节
+	optional string secure_key = 2;	
+}
+
+// 绑定/取消绑定服务
+// CMD:133、134、137
+message ServiceBind {
+	// 不超过32字节
+	required string application_id = 1;
+	// 不超过32字节， 在取消绑定的回复中为空
+	optional string client_id = 2;	
+}
+
+
+// 请求的回复
+// CMD:135
+message Response {
+	// 回应消息， 最长256字节
+	required string status = 1;
+}
